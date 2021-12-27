@@ -15,9 +15,33 @@ describe( 'base test', () => {
 
     it('should return some function if function provided', () =>{
         expect(memoize(() => {})).to.be.a('function');
-        assert()
     });
-
 
 })
 
+describe( 'Primitive test', () => {
+    const mult2 = arg => arg + arg;
+    const inc1 = i => i+1;
+
+    let mMult2;
+    let mInc1;
+
+    beforeEach(()=>{
+        mMult2 = memoize(mult2);
+        mInc1 = memoize(inc1);
+    });
+
+    it('should return the same values as the original function', () =>{
+        [1,100, '1', 'hi'].forEach(arg => {
+            expect(mMult2(arg)).to.equals(mult2(arg));
+            expect(mInc1(arg)).to.equals(inc1(arg));
+        });
+    });
+
+    it('is not equal to the original function', () => {
+        expect(memoize(inc1))
+            .to.be.a('function')
+            .and.to.not.equal(inc1);
+    });
+
+})
