@@ -44,6 +44,12 @@ describe( 'Primitive test', () => {
             .and.to.not.equal(inc1);
     });
 
+    it('is not equal to the original function', () => {
+        expect(memoize(inc1))
+            .to.be.a('function')
+            .and.to.not.equal(inc1);
+    });
+
 })
 
 describe( 'Object test', () => {
