@@ -45,3 +45,24 @@ describe( 'Primitive test', () => {
     });
 
 })
+
+describe( 'Object test', () => {
+    const getParametr = arg => arg['test'];
+    const paramsCount = arg => Object.keys(arg).length;
+
+    let mGetParm;
+    let mParamsCount;
+
+    beforeEach(()=>{
+        mGetParm = memoize(getParametr);
+        mParamsCount = memoize(paramsCount);
+    });
+
+    it('should return the same values as the original function', () =>{
+        [{}, {'test': 1}, {'test1': 'hi'}].forEach(arg => {
+            expect(mGetParm(arg)).to.equals(getParametr(arg));
+            expect(mParamsCount(arg)).to.equals(paramsCount(arg));
+        });
+    });
+
+})
