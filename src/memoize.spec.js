@@ -1,74 +1,152 @@
-import {describe,beforeEach, it} from 'mocha';
+import {describe, beforeEach, it} from 'mocha';
 import {expect} from 'chai';
+import sinon from 'sinon';
 import {memoize} from './memoize.js';
 
-describe( 'base test', () => {
-    it('should be a function', () =>{
-        expect(memoize).to.be.a('function')
+describe('memoize', () => {
+    it('should be a function', () => {
+        expect(memoize).to.be.a('function');
     });
 
-    it('should return undefined if no function provided', ()=>{
+    it('should return undefined if no function provided', () => {
         [undefined, null, 123, {}].forEach((arg) => {
             expect(memoize(arg)).to.be.an('null');
-        })
+        });
     });
 
-    it('should return some function if function provided', () =>{
+    it('should return some function if function was provided', () => {
         expect(memoize(() => {})).to.be.a('function');
     });
 
-})
+    describe('should return chached function that', () => {
+        // function abs(a,b,c) {
+        //     const power = xs.map(x => x * x).reduce((sum, x) => sum + x);
+        //     return Math.round(Math.sqrt(power));
+        // }
+        const abs = (a, b) => Math.round(Math.sqrt((a * a) + (b * b)));
 
-describe( 'Primitive test', () => {
-    const mult2 = arg => arg + arg;
-    const inc1 = i => i+1;
+        // function grep(pattern, ...items) {
+        //     if (!(pattern instanceof RegExp)) { // Special case
+        //         return null;
+        //     }
+        //     return items.map(String).filter(item => pattern.test(item));
+        // }
 
-    let mMult2;
-    let mInc1;
+        let absSpy;
+        // let grepSpy;
+        let memoizedAbs;
+        // let memoizedGrep;
 
-    beforeEach(()=>{
-        mMult2 = memoize(mult2);
-        mInc1 = memoize(inc1);
-    });
+        beforeEach(() => {
+            absSpy = sinon.spy(abs);
+            memoizedAbs = memoize(absSpy);
+            // grepSpy = sinon.spy(grep);
+            // memoizedGrep = memoize(grepSpy);
+        });
 
-    it('should return the same values as the original function', () =>{
-        [1,100, '1', 'hi'].forEach(arg => {
-            expect(mMult2(arg)).to.equals(mult2(arg));
-            expect(mInc1(arg)).to.equals(inc1(arg));
+        it('is not equal to the original function', () => {
+            expect(memoize(abs))
+                .to.be.a('function')
+                .and.to.not.equal(abs);
+        });
+
+        it('delegates calls to the target function', () => {
+            expect(memoizedAbs(0, 1)).to.equal(1);
+            expect(memoizedAbs(3, 4)).to.equal(5);
+            // expect(memoizedGrep(/\d+/, 'abc', '123', 'def')).to.deep.equal(['123']);
+        });
+
+        // it('delegates calls preserving context', () => {
+        //     const ctx = {};
+        //     expect(ctx::memoizedAbs(0, 1)).to.equal(1);
+        //     sinon.assert.calledOn(absSpy, ctx);
+        // });
+
+        it('returns correct values in case of the consequent calls with identical arguments', () => {
+            expect(memoizedAbs(7, 0)).to.equal(7); // #1
+            expect(memoizedAbs(3, 4)).to.equal(5); // #2
+            expect(memoizedAbs(3, 4)).to.equal(5); // #2
+            expect(memoizedAbs(4, 3)).to.equal(5); // #3
+            expect(memoizedAbs(4, 3)).to.equal(5); // #3
+            expect(memoizedAbs(3, 4)).to.equal(5); // #2
+            expect(memoizedAbs(4, 3)).to.equal(5); // #3
+            expect(memoizedAbs(7, 0)).to.equal(7); // #1
+            sinon.assert.callCount(absSpy, 3);
+        });
+
+        it('caches empty result as legal value', () => {
+            // expect(memoizedGrep(undefined)).to.be.a('null');
+            // expect(memoizedGrep(undefined)).to.be.a('null');
+            expect(memoizedAbs(undefined, undefined)).to.be.a('number');
+            expect(memoizedAbs(undefined, undefined)).to.be.a('number');
+            sinon.assert.calledOnce(absSpy);
+        });
+
+        it('caches results of the consequent calls with identical arguments', () => {
+            expect(memoizedAbs(3, 4)).to.equal(5); // #1
+            sinon.assert.calledWith(absSpy, 3, 4);
+            sinon.assert.calledOnce(absSpy);
+            expect(memoizedAbs(3, 4)).to.equal(5); // #2
+            sinon.assert.calledOnce(absSpy);
+        });
+
+        it('uses all arguments to compute cache key', () => {
+            // const N = 10;
+            // for (let n = 1; n <= N; n += 1) {
+            //     const args = range(n);
+            //     memoizedAbs(...args);
+            //     sinon.assert.calledWith(absSpy, ...args);
+            //     sinon.assert.callCount(absSpy, n);
+            // }
+            // absSpy.reset();
+            // for (let n = 1; n <= N; n += 1) {
+            //     memoizedAbs(...range(n));
+            // }
+            // sinon.assert.notCalled(absSpy);
+            //
+            // function range(n) {
+            //     return n > 0 ? [n, ...range(n - 1)] : [];
+            // }
+            memoizedAbs(1, 2);
+            sinon.assert.calledWith(absSpy, 1, 2);
+            memoizedAbs(1, 3);
+            sinon.assert.calledWith(absSpy, 1, 3);
+            memoizedAbs(3, 2);
+            sinon.assert.calledWith(absSpy, 3, 2);
+            memoizedAbs(3, 1);
+            sinon.assert.calledWith(absSpy, 3, 1);
+            sinon.assert.callCount(absSpy, 4);
+
+            memoizedAbs(1, 2);
+            memoizedAbs(1, 3);
+            memoizedAbs(3, 2);
+            memoizedAbs(3, 1);
+            sinon.assert.callCount(absSpy, 4);
+        });
+
+        // it('uses complicated enough key generator to distinguish different types', () => {
+        //     const args1 = [/\d+/, '1', 2, true];
+        //     expect(memoizedGrep(...args1)).to.deep.equal(['1', '2']); // #1
+        //     sinon.assert.calledWith(grepSpy, ...args1);
+        //     sinon.assert.calledOnce(grepSpy);
+        //     const args2 = [/\d+/, 1, '2', true];
+        //     expect(memoizedGrep(...args2)).to.deep.equal(['1', '2']); // #2
+        //     sinon.assert.calledWith(grepSpy, ...args2);
+        //     sinon.assert.calledTwice(grepSpy);
+        //     grepSpy.reset();
+        //     expect(memoizedGrep(...args2)).to.deep.equal(['1', '2']); // #2
+        //     sinon.assert.notCalled(grepSpy);
+        // });
+
+        it('uses complicated enough key generator to preserve argument order', () => {
+            expect(memoizedAbs(4, 3)).to.equal(5); // #1
+            sinon.assert.calledWith(absSpy, 4, 3);
+            sinon.assert.calledOnce(absSpy);
+            expect(memoizedAbs(3, 4)).to.equal(5); // #2
+            sinon.assert.calledWith(absSpy, 3, 4);
+            sinon.assert.calledTwice(absSpy);
+            expect(memoizedAbs(3, 4)).to.equal(5); // #2
+            sinon.assert.calledTwice(absSpy);
         });
     });
-
-    it('is not equal to the original function', () => {
-        expect(memoize(inc1))
-            .to.be.a('function')
-            .and.to.not.equal(inc1);
-    });
-
-    it('is not equal to the original function', () => {
-        expect(memoize(inc1))
-            .to.be.a('function')
-            .and.to.not.equal(inc1);
-    });
-
-})
-
-describe( 'Object test', () => {
-    const getParametr = arg => arg['test'];
-    const paramsCount = arg => Object.keys(arg).length;
-
-    let mGetParm;
-    let mParamsCount;
-
-    beforeEach(()=>{
-        mGetParm = memoize(getParametr);
-        mParamsCount = memoize(paramsCount);
-    });
-
-    it('should return the same values as the original function', () =>{
-        [{}, {'test': 1}, {'test1': 'hi'}].forEach(arg => {
-            expect(mGetParm(arg)).to.equals(getParametr(arg));
-            expect(mParamsCount(arg)).to.equals(paramsCount(arg));
-        });
-    });
-
-})
+});
